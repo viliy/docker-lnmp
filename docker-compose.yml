@@ -19,8 +19,8 @@ services:
             lnmp:
                 ipv4_address: 10.0.0.10
     php56:
-        # build: ./webservers/php5.6
-        image: zhaqq-php:5.6-fpm
+        build: ./webservers/php5.6
+        # image: zhaqq-php:5.6-fpm
         volumes:
             - www_data:/home/www-data
             - "./webservers/php5.6/conf.d/docker-php-ext-xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini"
@@ -33,7 +33,7 @@ services:
         networks:
             - lnmp
     php71:
-        build: webservers/php7.1
+        build: ./webservers/php7.1
 #        image: zhaqq-php71-fpm:1.0
         volumes:
             - www_data:/home/www-data
@@ -43,7 +43,7 @@ services:
         networks:
             - lnmp
     php72:
-        build: webservers/php7.2
+        build: ./webservers/php7.2
 #        image: php:7.2-fpm
         volumes:
             - www_data:/home/www-data
