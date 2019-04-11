@@ -1,0 +1,215 @@
+version: '3'
+services:
+    nginx:
+        image: nginx:alpine
+        ports:
+            - "9602:9601"
+            - "80:80"
+            - "9960-9969:9960-9969"
+        volumes:
+            - www_data:/home/www-data
+            - "./webservers/nginx/nginx.conf:/etc/nginx/nginx.conf"
+            - "./webservers/nginx/sites/:/etc/nginx/sites"
+            - nginx_log_data:/var/log/nginx
+        depends_on:
+            - php56
+#            - php71
+#            - php72
+        networks:
+            lnmp:
+                ipv4_address: 10.0.0.10
+    php56:
+        # build: ./webservers/php5.6
+        image: zhaqq-php:5.6-fpm
+        volumes:
+            - www_data:/home/www-data
+            - "./webservers/php5.6/conf.d/docker-php-ext-xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini"
+            - "./webservers/php5.6/conf.d/docker-php-ext-xhprof.ini:/usr/local/etc/php/conf.d/docker-php-ext-xhprof.ini"
+            - "./webservers/php5.6/php.ini:/usr/local/etc/php/php.ini"
+            - php56_profiling_data:/var/www/profiling
+        environment:
+            PHP_XDEBUG_IDEKEY: ${PHP_XDEBUG_IDEKEY}
+            PHP_XDEBUG_TRIGGER_KEY: ${PHP_XDEBUG_TRIGGER_KEY}
+        networks:
+            - lnmp
+    php71:
+        build: webservers/php7.1
+#        image: zhaqq-php71-fpm:1.0
+        volumes:
+            - www_data:/home/www-data
+            - "./webservers/php7.1/php.ini:/usr/local/etc/php/php.ini"
+            - "./webservers/php7.1/conf.d/docker-php-ext-xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini"
+            - "./webservers/php7.1/conf.d/docker-php-ext-xhprof.ini:/usr/local/etc/php/conf.d/docker-php-ext-xhprof.ini"
+        networks:
+            - lnmp
+    php72:
+        build: webservers/php7.2
+#        image: php:7.2-fpm
+        volumes:
+            - www_data:/home/www-data
+            - "./webservers/php7.2/php.ini:/usr/local/etc/php/php.ini"
+    redis:
+        hostname: redis
+        image: redis
+        ports:
+            - "6379:6379"
+        volumes:
+            - redis_data:/data
+        networks:
+            - lnmp
+    memcached:
+        image: memcached:latest
+        entrypoint:
+            - memcached
+            - -m 64
+        ports:
+            - "21211:11211"
+        expose:
+            - "11211"
+        networks:
+            - lnmp
+    #        depends_on:
+    #        - web
+    mysql:
+        image: mysql:5.7
+        ports:
+            - "3306:3306"
+        volumes:
+            - mysql_data:/var/lib/mysql
+        environment:
+            MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+            MYSQL_ROOT_HOST: "%"
+            MYSQL_ROOT_PASSWORD: ""
+        networks:
+            - lnmp
+    elasticsearch:
+        image: elasticsearch:6.7.0
+        # see: https://www.elastic.co/guide/en/elasticsearch/reference/6.7/docker.html
+        ports:
+            - "9200:9200"
+            - "9300:9300"
+        volumes:
+            - elasticsearch_data:/usr/share/elasticsearch/data
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        environment:
+            cluster.name: "runnerdock-cluster"
+            bootstrap.memory_lock: "true"
+            ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+        networks:
+            - lnmp
+    kibana:
+        image: kibana:6.7.0
+        ports:
+            - "5601:5601"
+        networks:
+            - lnmp
+        depends_on:
+            - elasticsearch
+    mongo:
+        hostname: mongo
+        image: mongo
+        restart: always
+        networks:
+            - lnmp
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: admin
+            MONGO_INITDB_ROOT_PASSWORD: admin
+        volumes:
+            - mongodb_data:/data/db
+            - mongodb_logs:/var/logs
+            - ./webservers/mongo/conf:/docker-entrypoint-initdb.d/
+        ports:
+            - "37017:27017"
+    mongo-express:  # 会自动从Docker Hub上自动获取mongo-express这个镜像
+        image: mongo-express
+        restart: always
+        networks:
+            - lnmp
+        ports:
+            - 8088:8081
+        environment:  # 这里只能使用与上方MONGO_INITDB_ROOT_USERNAME相同的账号
+            ME_CONFIG_BASICAUTH_USERNAME: 'admin'               #  Database username
+            ME_CONFIG_BASICAUTH_PASSWORD: 'admin'               #  Database password
+        depends_on:
+            - mongo
+    adminmongo:
+        image: mrvautin/adminmongo
+        networks:
+            - lnmp
+        ports:
+            - 1234:1234
+        environment:
+            - HOST=0.0.0.0
+        depends_on:
+            - mongo
+    rabbitmq:
+        image: rabbitmq:3.7.14-management
+        environment:
+            RABBITMQ_NODENAME: rabbitmq1
+            RABBITMQ_ERLANG_COOKIE: YZSDHWMFSMKEMBDHSGGZ
+        ports:
+        - "5672:5672"
+        - "15672:15672"
+        restart: always
+        hostname: rabbitmq
+
+networks:
+    lnmp:
+        driver: bridge
+        ipam:
+            driver: default
+            config:
+                - subnet: 10.0.0.0/24
+
+volumes:
+    www_data:
+        driver: local
+        driver_opts:
+            type: none
+            o: bind
+            device: ${WORKSPACE}
+    mysql_data:
+        driver: local
+        driver_opts:
+            type: none
+            o: bind
+            device: ${MYSQL_DATA_PATH}
+    redis_data:
+        driver: local
+        driver_opts:
+            type: none
+            o: bind
+            device: ${REDIS_DATA_PATH}
+    nginx_log_data:
+        driver: local
+        driver_opts:
+            type: none
+            o: bind
+            device: ${NGINX_LOGS_PATH}
+    php56_profiling_data:
+        driver: local
+        driver_opts:
+            type: none
+            o: bind
+            device: ${PHP_PROFILING_PATH}
+    elasticsearch_data:
+        driver: local
+        driver_opts:
+            type: none
+            o: bind
+            device: ${ELASTICSEARCH_DATA_PATH}
+    mongodb_data:
+        driver: local
+        driver_opts:
+            type: none
+            o: bind
+            device: ${MONGODB_DATA_PATH}
+    mongodb_logs:
+        driver: local
+        driver_opts:
+            type: none
+            o: bind
+            device: ${MONGODB_LOGS_PATH}
