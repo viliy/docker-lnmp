@@ -53,7 +53,6 @@ RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
 
 # 镜像源：laravel
 #RUN composer config -g repo.packagist composer https://packagist.laravel-china.org
-https://github.com/viliy/docker-lnmp.git
 # 清理
 RUN rm -rf /usr/local/src/* \
     && rm -rf /tmp/pear/download/* \

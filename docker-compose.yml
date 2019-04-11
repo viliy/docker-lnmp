@@ -16,8 +16,7 @@ services:
 #            - php71
 #            - php72
         networks:
-            lnmp:
-                ipv4_address: 10.0.0.10
+             - lnmp
     php56:
         build: ./webservers/php5.6
         # image: zhaqq-php:5.6-fpm
@@ -161,8 +160,6 @@ networks:
         driver: bridge
         ipam:
             driver: default
-            config:
-                - subnet: 10.0.0.0/24
 
 volumes:
     www_data:
